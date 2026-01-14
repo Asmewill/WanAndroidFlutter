@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cookie_jar/cookie_jar.dart';
-import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:flutter/material.dart';
@@ -33,9 +34,11 @@ typedef Fail = Function(int code, String msg);
 class HttpRequest {
   ///全局Dio对象
   static Dio? _dio;
-
+  ///是否启用抓包
+  static bool isOpenProxy = true;
   /// 创建 dio 实例对象
   static Future<Dio> createInstance([bool isJson = false]) async {
+
     if (_dio == null) {
       /// 全局属性：请求前缀、连接超时时间、响应超时时间
       var options = BaseOptions(
@@ -58,9 +61,24 @@ class HttpRequest {
         receiveTimeout: _receiveTimeout,
       );
       _dio = Dio(options);
+
+      ///Charles抓包配置
+      if (isOpenProxy) {
+        _dio!.httpClientAdapter = IOHttpClientAdapter()
+          ..onHttpClientCreate = (HttpClient client) {
+            client.findProxy = (uri) {
+              //proxy all request to localhost:8888
+              return 'PROXY 192.168.2.118:8888';
+            };
+            client.badCertificateCallback =
+                (X509Certificate cert, String host, int port) => true;
+            return client;
+          };
+      }
+      //
       var persistCookieJar = await prepareJar();
       _dio?.interceptors.add(CookieManager(persistCookieJar));
-      // _dio?.interceptors.add(PrettyDioLogger());
+       _dio?.interceptors.add(PrettyDioLogger());
       // 重试拦截器
       _dio?.interceptors.add(
         RetryInterceptor(
@@ -88,7 +106,7 @@ class HttpRequest {
   /// 提供persistCookieJar
   static Future<PersistCookieJar> prepareJar() async {
     final Directory appDocDir = await getApplicationDocumentsDirectory();
-    final String appDocPath = appDocDir.path;
+    final String appDocPath = appDocDir.path;///data/user/0/com.example.wan_android_flutter/app_flutter
     return PersistCookieJar(
       ignoreExpires: true,
       storage: FileStorage("$appDocPath/.cookies/"),
