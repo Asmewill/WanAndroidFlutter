@@ -35,7 +35,7 @@ class HttpRequest {
   ///全局Dio对象
   static Dio? _dio;
   ///是否启用抓包
-  static bool isOpenProxy = true;
+  static bool isOpenProxy = false;
   /// 创建 dio 实例对象
   static Future<Dio> createInstance([bool isJson = false]) async {
 
